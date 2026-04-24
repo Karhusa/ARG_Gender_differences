@@ -65,8 +65,11 @@ remove_ids <- c(
 )
 
 Subset <- Subset[!Subset$biosample %in% remove_ids, ]
-
+dim(Subset)
 ```
+[1] 60996    14
+[1] 60666    14
+
 --> 330 samples removed
 
 
@@ -163,45 +166,19 @@ lm_LMIC <- lm(log10_ARG_load ~ age_years + sex, data = LMIC_df)
 summary(lm_LMIC)
 ```
 
-Call:
-lm(formula = log10_ARG_load ~ age_years + sex, data = HIC_df)
+| Cohort              | Predictor   | Estimate | Std. Error | t value | p-value | Significance |
+| ------------------- | ----------- | -------: | ---------: | ------: | ------: | ------------ |
+| **HIC (N = 8,257)** | (Intercept) |   2.7303 |    0.00693 |  394.18 |  <2e-16 | ***          |
+| HIC                 | Age (years) |  0.00036 |    0.00014 |   2.649 | 0.00809 | **           |
+| HIC                 | Sex (Male)  | -0.00263 |    0.00683 |  -0.385 |   0.700 |              |
+| **LMIC (N = 986)**  | (Intercept) |   2.7808 |    0.01868 |  148.86 |  <2e-16 | ***          |
+| LMIC                | Age (years) |  0.00317 |    0.00037 |   8.483 |  <2e-16 | ***          |
+| LMIC                | Sex (Male)  |  0.02930 |    0.01775 |   1.650 |  0.0992 | .            |
 
-Residuals:
-     Min       1Q   Median       3Q      Max 
--1.02575 -0.19386  0.01344  0.19587  1.76071 
-
-Coefficients:
-              Estimate Std. Error t value Pr(>|t|)    
-(Intercept)  2.7302918  0.0069264 394.184  < 2e-16 ***
-age_years    0.0003599  0.0001359   2.649  0.00809 ** 
-sexMale     -0.0026325  0.0068311  -0.385  0.69997    
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-Residual standard error: 0.3097 on 8254 degrees of freedom
-Multiple R-squared:  0.0008564,	Adjusted R-squared:  0.0006143 
-F-statistic: 3.537 on 2 and 8254 DF,  p-value: 0.02914
-
-
-Call:
-lm(formula = log10_ARG_load ~ age_years + sex, data = LMIC_df)
-
-Residuals:
-    Min      1Q  Median      3Q     Max 
--1.0815 -0.1656 -0.0070  0.1623  1.0027 
-
-Coefficients:
-            Estimate Std. Error t value Pr(>|t|)    
-(Intercept) 2.780804   0.018681 148.857   <2e-16 ***
-age_years   0.003173   0.000374   8.483   <2e-16 ***
-sexMale     0.029300   0.017752   1.650   0.0992 .  
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-Residual standard error: 0.2787 on 984 degrees of freedom
-Multiple R-squared:  0.0711,	Adjusted R-squared:  0.06921 
-F-statistic: 37.66 on 2 and 984 DF,  p-value: < 2.2e-16
-
+| Cohort | Residual SE |      R² | Adjusted R² | F-statistic          | p-value  |
+| ------ | ----------- | ------: | ----------: | -------------------- | -------- |
+| HIC    | 0.3097      | 0.00086 |     0.00061 | 3.537 (df = 2, 8254) | 0.02914  |
+| LMIC   | 0.2787      |  0.0711 |      0.0692 | 37.66 (df = 2, 984)  | <2.2e-16 |
 
 
 ### 3.3 Boxplot
@@ -291,7 +268,7 @@ ggplot(plot_df, aes(x = age_years, y = log10_ARG_load, color = sex)) +
 df_temp <- Subset |>
   dplyr::select(log10_ARG_load, age_years, sex, World_Bank_Income_Group) |>
   dplyr::mutate(
-    sex = factor(sex, levels = c("male", "female")),
+    sex = factor(sex, levels = c("Male", "Female")),
     age_years = as.numeric(age_years),
     Income_group = dplyr::case_when(
       World_Bank_Income_Group == "High income" ~ "HIC",
@@ -305,31 +282,9 @@ df_temp <- Subset |>
     Income_group = factor(Income_group, levels = c("HIC", "LMIC"))
   ) |>
   dplyr::filter(
-    sex %in% c("male", "female"),
-    !is.na(age_years),
-    !is.na(log10_ARG_load),
-    !is.na(Income_group)
-  )
-
-temp_df <- df_temp %>%
-    group_by(sex, Income_group) %>%
-    summarise(
-        mean_log10_ARG = mean(log10_ARG_load, na.rm = TRUE),
-        n = n(),
-        .groups = "drop"
-    ) %>%
-    pivot_wider(
-        names_from = Income_group,
-        values_from = c(mean_log10_ARG, n)
-    )
-temp_df %>%
-    gt() %>%
-    tab_header(
-        title = "Mean log10(ARG load) by Sex and Income Group"
-    ) %>%
-    fmt_number(
-        columns = starts_with("mean_log10_ARG"),
-        decimals = 3)
+    sex %in% c("Male", "Female"),
+    !is.na(Income_group),
+    !is.na(age_years))
 
 
 fit <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10) + sex*Income_group,
@@ -337,6 +292,23 @@ fit <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10) + sex*Income_gr
 
 summary(fit)
 draw(fit)
+
+```
+
+| Component        | Term                 | Estimate | Std. Error | t / F value | p-value | Significance |
+| ---------------- | -------------------- | -------: | ---------: | ----------: | ------: | ------------ |
+| **Parametric**   | (Intercept)          |   2.7363 |    0.00482 |      567.42 |  <2e-16 | ***          |
+| Parametric       | Sex (Female)         |   0.0103 |    0.00672 |       1.534 |  0.1251 |              |
+| Parametric       | Income group (LMIC)  |   0.1959 |    0.01434 |      13.663 |  <2e-16 | ***          |
+| Parametric       | Sex (Female) × LMIC  |  -0.0490 |    0.02055 |      -2.383 |  0.0172 | *            |
+| **Smooth terms** | s(age_years): Male   |        — |          — |       25.83 |  <2e-16 | ***          |
+| Smooth terms     | s(age_years): Female |        — |          — |       19.48 |  <2e-16 | ***          |
+
+| Family   | Link function | Adjusted R² | Deviance explained | REML   | Scale estimate | Sample size (N) |
+| -------- | ------------- | ----------- | ------------------ | ------ | -------------- | --------------- |
+| Gaussian | Identity      | 6.25%       | 6.41%              | 2095.8 | 0.091347       | 9,244           |
+
+```
 
 # draw the differences
 diff <- difference_smooths(
@@ -375,7 +347,7 @@ newdata <- expand.grid(
   age_years = seq(min(df_temp$age_years),
                   max(df_temp$age_years),
                   length = 200),
-  sex = c("female","male"),
+  sex = c("Female","Male"),
   Income_group = levels(df_temp$Income_group))  # changed from World_Bank_Income_Group)
 
 predictions <- predict(fit, newdata, se.fit = TRUE)
@@ -387,7 +359,7 @@ diff_data <- newdata %>%
     names_from = sex,
     values_from = c(pred, se))
 
-diff_data$diff <- diff_data$pred_male - diff_data$pred_female
+diff_data$diff <- diff_data$pred_Male - diff_data$pred_Female
 
 # Plot
 library(ggplot2)
@@ -551,10 +523,7 @@ summary(lm_full)
 
 ```
 
-### 2.6 Katan malli
-
-# Differences 
-
+### 2.6 GAM
 ```r
 df_temp <- Subset %>%
   select(log10_ARG_load, sex, age_years, World_Bank_Income_Group) %>%
@@ -577,17 +546,9 @@ fit <- gam(
 
 summary(fit)
 draw(fit)
-
-# draw the differences
-diff <- difference_smooths(
-  fit,
-  smooth = "s(age_years)",
-  n = 200)
-
-draw(diff)
-
 ```
-# Model check:
+### 2.X Model check:
+Go through with mahkameh
 ```r
 plot(fit$fitted.values, df_temp$log10_ARG_load,
      xlab = "Fitted values",
@@ -610,6 +571,16 @@ abline(h=0, col="red")
 # 0 to 0.5 normal deviation
 ```
 
+### 2.6 GAM differences
+```r
+diff <- difference_smooths(
+  fit,
+  smooth = "s(age_years)",
+  n = 200)
+
+draw(diff)
+```
+### 2.7 Visualize GAM differences
 ```r
 newdata <- expand.grid(
   age_years = seq(min(df_temp$age_years),
@@ -628,12 +599,11 @@ diff_data <- newdata %>%
     values_from = c(pred, se)
   )
 
-
 diff_data$diff <- diff_data$pred_male - diff_data$pred_female
+```
+### Options for visualizations
 
-# Plot
-library(ggplot2)
-
+```r
 ggplot(diff_data, aes(age_years, diff)) +
   geom_smooth() +
   geom_hline(yintercept = 0, linetype = "dashed") +
@@ -644,4 +614,34 @@ ggplot(diff_data, aes(age_years, diff)) +
     title = "Sex Differences in Predicted ARG Load Across Age by Income Group"
   )
 
+ggplot(diff_data, aes(age_years, Income_group, fill = diff)) +
+  geom_tile() +
+  scale_fill_gradient2(
+    low = "#b40426",   # red (Female > Male)
+    mid = "white",
+    high = "#3b4cc0",  # blue (Male > Female)
+    midpoint = 0,
+    limits = c(-max(abs(diff_data$diff)),
+               max(abs(diff_data$diff)))
+  ) +
+  theme_minimal()
+
+# Blue = Male > Female
+# Red = Female > Male
+# White = no difference
+
+# 3.Trajectories of predicted means: 
+
+ggplot(newdata, aes(age_years, pred, color = sex, fill = sex)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = pred - 1.96*se,
+                  ymax = pred + 1.96*se),
+              alpha = 0.2, color = NA) +
+  facet_wrap(~Income_group) +
+  labs(
+    y = "Predicted log10(ARG load)",
+    x = "Age (years)",
+    title = "Age trajectories of ARG diversity by sex and income group"
+  ) +
+  theme_minimal()
 ```
