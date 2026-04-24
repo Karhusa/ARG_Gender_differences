@@ -37,7 +37,6 @@ colData_df <- as.data.frame(colData(TSE))
 Subset <- colData_df %>%
   select(
     ARG_div_shan,
-    log10_ARG_load,
     region,
     city,
     sex,
@@ -154,7 +153,6 @@ table_image
 ### 2.2 Linear model
 With numeric age
 ```r
-
 HIC_df <- plot_df %>% filter(Income_group == "HIC")
 LMIC_df <- plot_df %>% filter(Income_group == "LMIC")
 
@@ -164,25 +162,24 @@ summary(lm_HIC)
 lm_LMIC <- lm(ARG_div_shan ~ age_years + sex, data = LMIC_df)
 summary(lm_LMIC)
 ```
-
 Call:
 lm(formula = ARG_div_shan ~ age_years + sex, data = HIC_df)
 
 Residuals:
      Min       1Q   Median       3Q      Max 
--1.02575 -0.19386  0.01344  0.19587  1.76071 
+-1.73511 -0.28980  0.02956  0.32344  1.43123 
 
 Coefficients:
               Estimate Std. Error t value Pr(>|t|)    
-(Intercept)  2.7302918  0.0069264 394.184  < 2e-16 ***
-age_years    0.0003599  0.0001359   2.649  0.00809 ** 
-sexMale     -0.0026325  0.0068311  -0.385  0.69997    
+(Intercept)  1.6989980  0.0106261 159.889   <2e-16 ***
+age_years    0.0058535  0.0002085  28.077   <2e-16 ***
+sexMale     -0.0084761  0.0104798  -0.809    0.419    
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-Residual standard error: 0.3097 on 8254 degrees of freedom
-Multiple R-squared:  0.0008564,	Adjusted R-squared:  0.0006143 
-F-statistic: 3.537 on 2 and 8254 DF,  p-value: 0.02914
+Residual standard error: 0.4752 on 8254 degrees of freedom
+Multiple R-squared:  0.08723,	Adjusted R-squared:  0.08701 
+F-statistic: 394.4 on 2 and 8254 DF,  p-value: < 2.2e-16
 
 
 Call:
@@ -190,25 +187,24 @@ lm(formula = ARG_div_shan ~ age_years + sex, data = LMIC_df)
 
 Residuals:
     Min      1Q  Median      3Q     Max 
--1.0815 -0.1656 -0.0070  0.1623  1.0027 
+-1.2185 -0.2862  0.0118  0.2661  1.3388 
 
 Coefficients:
-            Estimate Std. Error t value Pr(>|t|)    
-(Intercept) 2.780804   0.018681 148.857   <2e-16 ***
-age_years   0.003173   0.000374   8.483   <2e-16 ***
-sexMale     0.029300   0.017752   1.650   0.0992 .  
+              Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  1.9532166  0.0279786  69.811  < 2e-16 ***
+age_years    0.0037365  0.0005602   6.670 4.25e-11 ***
+sexMale     -0.0276851  0.0265875  -1.041    0.298    
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-Residual standard error: 0.2787 on 984 degrees of freedom
-Multiple R-squared:  0.0711,	Adjusted R-squared:  0.06921 
-F-statistic: 37.66 on 2 and 984 DF,  p-value: < 2.2e-16
+Residual standard error: 0.4174 on 984 degrees of freedom
+Multiple R-squared:  0.04401,	Adjusted R-squared:  0.04207 
+F-statistic: 22.65 on 2 and 984 DF,  p-value: 2.412e-10
 
 
 
 ### 2.3 Boxplot
 With Categorised age
-
 ```r
 plot_df <- Subset %>% filter(
     !is.na(ARG_div_shan),
@@ -280,9 +276,9 @@ ggplot(plot_df, aes(x = age_years, y = ARG_div_shan, color = sex)) +
   scale_color_npg() +
   labs(
     x = "Age (years)",
-    y = "Log10 ARG Load",
+    y = "Shannon diversity",
     color = "Sex",
-    title = "LOESS-smoothed ARG load by age, sex, and income group"
+    title = "LOESS-smoothed ARG Shannon diversity by age, sex, and income group"
   ) +
   theme_minimal() +
   theme(
@@ -292,19 +288,11 @@ ggplot(plot_df, aes(x = age_years, y = ARG_div_shan, color = sex)) +
 
 ### 2.5 GAM 
 
-
-```r
-
-
-
-
-```
-
 ```r
 df_temp <- Subset |>
   dplyr::select(ARG_div_shan, age_years, sex, World_Bank_Income_Group) |>
   dplyr::mutate(
-    sex = factor(sex, levels = c("male", "female")),
+    sex = factor(sex, levels = c("Male", "Female")),
     age_years = as.numeric(age_years),
     Income_group = dplyr::case_when(
       World_Bank_Income_Group == "High income" ~ "HIC",
@@ -318,42 +306,24 @@ df_temp <- Subset |>
     Income_group = factor(Income_group, levels = c("HIC", "LMIC"))
   ) |>
   dplyr::filter(
-    sex %in% c("male", "female"),
+    sex %in% c("Male", "Female"),
     !is.na(Income_group))
 
-fit <- gam(ARG_div_shan ~ sex + s(age_years, by = sex, k = 10) + sex*Income_group,
-  method = "REML", data= df_temp)
-
-summary(fit)
-draw(fit)
-
-# draw the differences
-diff <- difference_smooths(
-  fit,
-  smooth = "s(age_years)",
-  n = 200)
-
-draw(diff))
-
-df <- df_temp %>%
-    group_by(sex, Income_group) %>%
-    summarise(
-        mean_shan = mean(ARG_div_shan, na.rm = TRUE),
-        n = n(),
-        .groups = "drop"
-    ) %>%
-    pivot_wider(
-        names_from = Income_group,
-        values_from = c(mean_shan, n)
-    )
-df %>%
-    gt() %>%
-    tab_header(
-        title = "Shannon diversity by Sex and Income Group"
-    ) %>%
-    fmt_number(
-        columns = starts_with("mean_shan"),
-        decimals = 3)
+plot_df <- Subset %>% filter(
+    !is.na(ARG_div_shan),
+    !is.na(sex),
+    !is.na(age_category)) %>%
+  mutate(
+    sex = recode(sex, "female" = "Female", "male" = "Male"),
+    Income_group = case_when(
+      World_Bank_Income_Group == "High income" ~ "HIC",
+      World_Bank_Income_Group %in% c("Low income", "Lower middle income", "Upper middle income") ~ "LMIC",
+      TRUE ~ NA_character_),
+    Income_group = factor(Income_group, levels = c("HIC", "LMIC")),
+    age_category = factor(age_category, levels = c(
+      "Infant", "Toddler", "Child", "Teenage",
+      "Young adult", "Middle-Age Adult",
+      "Older Adult", "Oldest Adult"))) %>%filter(!is.na(Income_group))
 
 
 fit <- gam(ARG_div_shan ~ sex + s(age_years, by = sex, k = 10) + sex*Income_group,
@@ -361,33 +331,52 @@ fit <- gam(ARG_div_shan ~ sex + s(age_years, by = sex, k = 10) + sex*Income_grou
 
 summary(fit)
 draw(fit)
+```
+Family: gaussian 
+Link function: identity 
 
-# draw the differences
+Formula:
+ARG_div_shan ~ sex + s(age_years, by = sex, k = 10) + sex * Income_group
+
+Parametric coefficients:
+                           Estimate Std. Error t value
+(Intercept)                1.913839   0.007415 258.112
+sexfemale                  0.004505   0.010338   0.436
+Income_groupLMIC           0.154708   0.022038   7.020
+sexfemale:Income_groupLMIC 0.028337   0.031609   0.896
+                           Pr(>|t|)    
+(Intercept)                 < 2e-16 ***
+sexfemale                     0.663    
+Income_groupLMIC           2.37e-12 ***
+sexfemale:Income_groupLMIC    0.370    
+---
+Signif. codes:  
+0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Approximate significance of smooth terms:
+                         edf Ref.df      F p-value    
+s(age_years):sexmale   4.795  5.839 110.76  <2e-16 ***
+s(age_years):sexfemale 7.646  8.374  45.72  <2e-16 ***
+---
+Signif. codes:  
+0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-sq.(adj) =  0.109   Deviance explained =   11%
+-REML = 6076.7  Scale est. = 0.21631   n = 9244
+
+### Draw the differences
+```r
+# 
 diff <- difference_smooths(
   fit,
   smooth = "s(age_years)",
   n = 200)
 
 draw(diff)
-
 ```
+
 # Model check:
 ```r
-plot(fit$fitted.values, df_temp$ARG_div_shan,
-     xlab = "Fitted values",
-     ylab = "Observed ARG_div_shan",
-     main = "Response vs Fitted Values",
-     pch = 16, col = "black")
-
-# Add the diagonal line (y = x)
-abline(a = 0, b = 1, col = "red", lwd = 2)
-
-residuals <- df_temp$ARG_div_shan - fit$fitted.values
-plot(fit$fitted.values, residuals,
-     xlab = "Fitted values",
-     ylab = "Residuals",
-     main = "Residuals vs Fitted")
-abline(h=0, col="red")
 
 # Some exterme values (above 1.5)
 # Over 1.0 large resuduals
