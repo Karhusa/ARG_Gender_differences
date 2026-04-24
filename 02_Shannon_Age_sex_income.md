@@ -37,6 +37,7 @@ colData_df <- as.data.frame(colData(TSE))
 Subset <- colData_df %>%
   select(
     ARG_div_shan,
+    log10_ARG_load,
     region,
     city,
     sex,
@@ -64,15 +65,17 @@ remove_ids <- c(
 )
 
 Subset <- Subset[!Subset$biosample %in% remove_ids, ]
-
 ```
 --> 330 samples removed
 
+--
 
-### 2. Age sex and and income analyses
+## 2. Age sex and and income analyses
+
+### 2.1 Sample distriburions
 
 Age categogy
-```
+```r
 Subset$sex <- recode(Subset$sex,"female" = "Female", "male"   = "Male")
 
 plot_df <- Subset %>%
@@ -148,8 +151,8 @@ table_image <- table_df %>%
 table_image
 ```
 
-### 3.2 Linear model
-Numeric age
+### 2.2 Linear model
+With numeric age
 ```r
 
 HIC_df <- plot_df %>% filter(Income_group == "HIC")
@@ -203,8 +206,9 @@ F-statistic: 37.66 on 2 and 984 DF,  p-value: < 2.2e-16
 
 
 
-### 3.3 Boxplot
-Categorised age
+### 2.3 Boxplot
+With Categorised age
+
 ```r
 plot_df <- Subset %>% filter(
     !is.na(ARG_div_shan),
@@ -264,11 +268,13 @@ ggplot(plot_df, aes(x = age_category, y = ARG_div_shan, fill = sex)) +
   )
 ```
 
-### 3.4 LOESS
+### 2.4 LOESS
+Change to GAM
+
 --> Not statistically best, but nice for visualization.
 ```
 ggplot(plot_df, aes(x = age_years, y = ARG_div_shan, color = sex)) +
-  geom_point(alpha = 0.2, size = 1.0) +  # lighter and smaller dots
+  geom_point(alpha = 0.2, size = 1.0) +
   geom_smooth(method = "loess", se = TRUE, span = 0.6) +
   facet_wrap(~Income_group) +
   scale_color_npg() +
@@ -284,7 +290,15 @@ ggplot(plot_df, aes(x = age_years, y = ARG_div_shan, color = sex)) +
     strip.background = element_rect(fill = "lightgrey", color = NA))
 ```
 
-### 2.6 GAM Fenale -  Male Differences 
+### 2.5 GAM 
+
+
+```r
+
+
+
+
+```
 
 ```r
 df_temp <- Subset |>
@@ -305,29 +319,40 @@ df_temp <- Subset |>
   ) |>
   dplyr::filter(
     sex %in% c("male", "female"),
-    !is.na(age_years),
-    !is.na(ARG_div_shan),
-    !is.na(Income_group)
-  )
+    !is.na(Income_group))
 
-temp_df <- df_temp %>%
+fit <- gam(ARG_div_shan ~ sex + s(age_years, by = sex, k = 10) + sex*Income_group,
+  method = "REML", data= df_temp)
+
+summary(fit)
+draw(fit)
+
+# draw the differences
+diff <- difference_smooths(
+  fit,
+  smooth = "s(age_years)",
+  n = 200)
+
+draw(diff))
+
+df <- df_temp %>%
     group_by(sex, Income_group) %>%
     summarise(
-        mean_log10_ARG = mean(ARG_div_shan, na.rm = TRUE),
+        mean_shan = mean(ARG_div_shan, na.rm = TRUE),
         n = n(),
         .groups = "drop"
     ) %>%
     pivot_wider(
         names_from = Income_group,
-        values_from = c(mean_log10_ARG, n)
+        values_from = c(mean_shan, n)
     )
-temp_df %>%
+df %>%
     gt() %>%
     tab_header(
-        title = "Mean log10(ARG load) by Sex and Income Group"
+        title = "Shannon diversity by Sex and Income Group"
     ) %>%
     fmt_number(
-        columns = starts_with("mean_log10_ARG"),
+        columns = starts_with("mean_shan"),
         decimals = 3)
 
 
