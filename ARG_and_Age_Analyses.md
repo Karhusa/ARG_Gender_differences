@@ -285,7 +285,7 @@ ggplot(plot_df, aes(x = age_years, y = log10_ARG_load, color = sex)) +
     strip.background = element_rect(fill = "lightgrey", color = NA))
 ```
 
-### 2.6 GAM Fenale -  Male Differences 
+### 2.6 GAM Female-Male Differences 
 
 ```r
 df_temp <- Subset |>
