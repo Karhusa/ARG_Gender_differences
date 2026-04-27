@@ -121,7 +121,7 @@ table_image <- table_df %>%
     Total = "Total (n)"
   ) %>%
   tab_header(
-    title = "High-Income Europe: Sample Distribution by Age and Sex"
+    title = "High-Income Asia: Sample Distribution by Age and Sex"
   )
 ```
 Numeric age (for linear regression)
@@ -137,10 +137,7 @@ sex_gt <- sex_table %>%
     sex = "Sex",
     n = "Count (n)"
   ) %>%
-  tab_header(
-    title = "Sex distribution in the High-Income North American cohort"
-  )
-
+  tab_header(title = "Sex distribution in the High-Income Asian cohort")
 ```
 
 
@@ -170,12 +167,10 @@ plot_df <- hic_As_clean %>%
   filter(!is.na(sex))
 
 ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
-  
   geom_jitter(
     position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.6),
     size = 1.2, alpha = 0.25, color = "grey30"
   ) +
-  
   geom_boxplot(
     width = 0.55,
     outlier.shape = NA,
@@ -185,18 +180,16 @@ ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
   scale_fill_npg() +
   scale_color_npg() +
   labs(
-    title = "ARG Load by Age Category and Sex (High-Income Europe)",
+    title = "ARG Load by Age Category and Sex (High-Income Asia)",
     x = "Age Category",
     y = expression(log[10]*"(ARG load)"),
     fill = "Sex"
   ) +
-  
   stat_compare_means(
     aes(group = sex),
     method = "wilcox.test",
     label = "p.signif"
   ) +
-  
   theme_minimal(base_size = 13) +
   theme(
     legend.position = "right",
