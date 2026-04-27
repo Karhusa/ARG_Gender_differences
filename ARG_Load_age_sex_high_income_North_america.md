@@ -75,8 +75,7 @@ Subset <- Subset[!Subset$biosample %in% remove_ids, ]
 hic_NA <- Subset %>%
   filter(
     World_Bank_Income_Group == "High income",
-    continent == "North America"
-  )
+    continent == "North America")
 
 unique(hic_NA$country)
 ```
@@ -86,8 +85,7 @@ Age category (for boxplot)
 hic_NA_clean <- hic_NA %>%
   filter(
     !is.na(age_category),
-    !is.na(sex)
-  )
+    !is.na(sex))
 table(hic_NA_clean$sex, useNA = "ifany")
 
 table_df <- hic_NA_clean %>%
@@ -117,8 +115,11 @@ table_image <- table_df %>%
     Total = "Total (n)"
   ) %>%
   tab_header(
-    title = "High-Income Europe: Sample Distribution by Age and Sex"
+    title = "High-Income North America: Sample Distribution by Age and Sex"
   )
+
+table_image
+
 ```
 Numeric age (for linear regression)
 
@@ -139,7 +140,6 @@ sex_gt <- sex_table %>%
   )
 
 ```
-
 
 ## 2.2 Boxplot
 
@@ -167,12 +167,10 @@ plot_df <- hic_NA_clean %>%
   filter(!is.na(sex))
 
 ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
-  
   geom_jitter(
     position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.6),
     size = 1.2, alpha = 0.25, color = "grey30"
   ) +
-  
   geom_boxplot(
     width = 0.55,
     outlier.shape = NA,
@@ -182,24 +180,21 @@ ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
   scale_fill_npg() +
   scale_color_npg() +
   labs(
-    title = "ARG Load by Age Category and Sex (High-Income Europe)",
+    title = "ARG Load by Age Category and Sex (High-Income North America)",
     x = "Age Category",
     y = expression(log[10]*"(ARG load)"),
     fill = "Sex"
   ) +
-  
   stat_compare_means(
     aes(group = sex),
     method = "wilcox.test",
     label = "p.signif"
   ) +
-  
   theme_minimal(base_size = 13) +
   theme(
     legend.position = "right",
     axis.text.x = element_text(angle = 45, hjust = 1),
-    strip.text = element_text(face = "bold")
-  )
+    strip.text = element_text(face = "bold"))
 
 ```
 
