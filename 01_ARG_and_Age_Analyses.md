@@ -72,8 +72,11 @@ dim(Subset)
 
 --> 330 samples removed
 
+---
 
-### 2. Age sex and and income analyses
+## 2. Age sex and and income analyses
+
+### 2.1 Sample distributions
 
 Age categogy
 ```
@@ -148,8 +151,7 @@ table_image <- table_df %>%
 
 table_image
 ```
-
-### 3.2 Linear model
+### 2.2 Linear model
 Numeric age
 ```r
 HIC_df <- plot_df %>% filter(Income_group == "HIC")
@@ -177,7 +179,7 @@ summary(lm_LMIC)
 | LMIC   | 0.2787      |  0.0711 |      0.0692 | 37.66 (df = 2, 984)  | <2.2e-16 |
 
 
-### 3.3 Boxplot
+### 2.3 Boxplot
 Categorised age
 ```r
 plot_df <- Subset %>% filter(
@@ -238,7 +240,7 @@ ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
   )
 ```
 
-### 3.4 LOESS
+### 2.4 LOESS
 --> Not statistically best, but nice for visualization.
 ```
 ggplot(plot_df, aes(x = age_years, y = log10_ARG_load, color = sex)) +
@@ -258,7 +260,7 @@ ggplot(plot_df, aes(x = age_years, y = log10_ARG_load, color = sex)) +
     strip.background = element_rect(fill = "lightgrey", color = NA))
 ```
 
-### 2.6 GAM Female-Male Differences 
+### 2.5 GAM Female-Male Differences 
 
 ```r
 df_temp <- Subset |>
@@ -282,13 +284,11 @@ df_temp <- Subset |>
     !is.na(Income_group),
     !is.na(age_years))
 
-
 fit <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10) + sex*Income_group,
   method = "REML", data= df_temp)
 
 summary(fit)
 draw(fit)
-
 ```
 
 | Component        | Term                 | Estimate | Std. Error | t / F value | p-value | Significance |
@@ -304,246 +304,8 @@ draw(fit)
 | -------- | ------------- | ----------- | ------------------ | ------ | -------------- | --------------- |
 | Gaussian | Identity      | 6.25%       | 6.41%              | 2095.8 | 0.091347       | 9,244           |
 
-```
 
-# draw the differences
-diff <- difference_smooths(
-  fit,
-  smooth = "s(age_years)",
-  n = 200)
-
-draw(diff)
-
-```
-# Model check:
-```r
-plot(fit$fitted.values, df_temp$log10_ARG_load,
-     xlab = "Fitted values",
-     ylab = "Observed log10_ARG_load",
-     main = "Response vs Fitted Values",
-     pch = 16, col = "black")
-
-# Add the diagonal line (y = x)
-abline(a = 0, b = 1, col = "red", lwd = 2)
-
-residuals <- df_temp$log10_ARG_load - fit$fitted.values
-plot(fit$fitted.values, residuals,
-     xlab = "Fitted values",
-     ylab = "Residuals",
-     main = "Residuals vs Fitted")
-abline(h=0, col="red")
-
-# Some exterme values (above 1.5)
-# Over 1.0 large resuduals
-# 0 to 0.5 normal deviation
-```
-
-```r
-newdata <- expand.grid(
-  age_years = seq(min(df_temp$age_years),
-                  max(df_temp$age_years),
-                  length = 200),
-  sex = c("Female","Male"),
-  Income_group = levels(df_temp$Income_group))  # changed from World_Bank_Income_Group)
-
-predictions <- predict(fit, newdata, se.fit = TRUE)
-newdata$pred <- predictions$fit
-newdata$se <- predictions$se.fit
-
-diff_data <- newdata %>%
-  tidyr::pivot_wider(
-    names_from = sex,
-    values_from = c(pred, se))
-
-diff_data$diff <- diff_data$pred_Male - diff_data$pred_Female
-
-# Plot
-library(ggplot2)
-
-ggplot(diff_data, aes(age_years, diff)) +
-  geom_smooth() +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  facet_wrap(~Income_group) +  # changed from World_Bank_Income_Group
-  labs(
-    y = "Male - Female predicted log10(ARG load)",
-    x = "Age (years)",
-    title = "Sex Differences in Predicted ARG Load Across Age by Income Group"
-  ) +
-  ggsci::scale_color_npg() +
-  ggsci::scale_fill_npg() +
-  theme_minimal()
-
-```
-
---
-
-## 4. ARG Load of the reproductive age
-
-### 4.1 Create the dataframe
-```r
-df_income_r_age_ARG <- Subset %>%
-  select(
-    sex,
-    World_Bank_Income_Group,        
-    age_years,
-    log10_ARG_load
-  ) %>%
-  mutate(
-    Income_group = case_when(
-      World_Bank_Income_Group == "High income" ~ "HIC",
-      World_Bank_Income_Group %in% c(
-        "Low income",
-        "Lower middle income",
-        "Upper middle income"
-      ) ~ "LMIC",
-      TRUE ~ NA_character_
-    ),
-    sex = recode(sex, "female" = "Female", "male" = "Male"),
-    sex = factor(sex, levels = c("Female", "Male"))
-  ) %>%
-  filter(
-    !is.na(age_years),
-    !is.na(sex),
-    !is.na(log10_ARG_load),
-    !is.na(Income_group),
-    (sex == "Female" & age_years >= 15 & age_years <= 49) |
-    (sex == "Male" & age_years >= 15 & age_years <= 49)
-  )
-```
-
-### 4.2 Boxplot
-```
-ggplot(df_income_r_age_ARG, aes(x = Income_group, y = log10_ARG_load, fill = sex)) +
-  geom_jitter(aes(color = sex), width = 0.2, alpha = 0.3, size = 1.5, show.legend = FALSE) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.8, width = 0.6) +
-  scale_fill_npg() +
-  scale_color_npg() +
-  labs(
-    x = "Income Group",
-    y = "log10(ARG load)",
-    fill = "Sex"
-  ) +
-  ggtitle("ARG Load by Income Group and Sex\nReproductive ages: Female 15–49, Male 15–49") +
-  theme_minimal(base_size = 14) +
-  theme(
-    legend.position = "right",
-    panel.grid.major.x = element_blank(),
-    plot.title = element_text(hjust = 0.5, face = "bold")
-  )
-```
-### 4.3 Linear model 
-
-```
-library(dplyr)
-
-model_HIC <- lm(log10_ARG_load ~ age_years + sex,
-  data = df_income_r_age_ARG %>% filter(Income_group == "HIC"))
-summary(model_HIC)
-
-model_LMIC <- lm(log10_ARG_load ~ age_years + sex,
-  data = df_income_r_age_ARG %>% filter(Income_group == "LMIC"))
-summary(model_LMIC)
-```
-
-## 2. ARG Load, numeric age, sex and income
-
-### 2.1 Sample distribution
-```r
-Subset$sex <- recode(Subset$sex, "female" = "Female", "male"   = "Male")
-
-plot_df <- Subset %>%
-  filter(!is.na(log10_ARG_load), !is.na(sex), !is.na(age_years))
-
-table_df <- plot_df %>%
-  count(sex) %>% pivot_wider(names_from = sex, values_from = n)
-
-table_df <- table_df %>% mutate(Total = Female + Male)
-
-table_image <- table_df %>%
-  gt() %>%
-  cols_label(
-    Female = "Female (n)",
-    Male = "Male (n)",
-    Total = "Total (n)"
-  ) %>%
-  tab_header(title = "Sample Distribution by Sex")
-
-table_image
-```
-
-### 2.2 Loess curve of ARG load by sex and numeric age
-
-```r
-Subset$sex[Subset$sex == "" | Subset$sex == "NA"] <- NA
-Subset$age_years[Subset$age_years == "" | is.na(Subset$age_years)] <- NA
-
-Subset$sex <- recode(Subset$sex, "female" = "Female", "male"   = "Male")
-
-plot_df <- Subset %>%
-  filter(!is.na(log10_ARG_load),
-         !is.na(sex),
-         !is.na(age_years)) %>%
-  mutate(sex = factor(sex, levels = c("Female", "Male")))
-
-ggplot(plot_df, aes(x = age_years, y = log10_ARG_load, color = sex, fill = sex)) +
-  geom_point(alpha = 0.08, size = 0.8) +
-  geom_smooth(method = "loess", se = TRUE, span = 0.7, alpha = 0.2, size = 1.2) +
-  scale_color_npg() +
-  scale_fill_npg() +
-  labs(
-    title = "ARG Load Across Age by Sex",
-    x = "Age (years)",
-    y = expression(log[10]*"(ARG load)"),
-    color = "Sex",
-    fill = "Sex"
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(face = "plain")
-  )
-```
-
-#### 2.4 Linear model
-```
-n_samples <- Subset %>%
-  filter(
-    !is.na(log10_ARG_load),
-    !is.na(sex),
-    !is.na(age_years)) %>% nrow()
-
-n_samples
-
-lm_full <- lm(log10_ARG_load ~ sex + age_years, data = plot_df)
-summary(lm_full)
-
-```
-
-### 2.6 GAM
-```r
-df_temp <- Subset %>%
-  select(log10_ARG_load, sex, age_years, World_Bank_Income_Group) %>%
-  filter(
-    sex %in% c("male", "female"),
-    !is.na(age_years), !is.na(World_Bank_Income_Group), !is.na(log10_ARG_load)) %>%
-  mutate(
-    sex = factor(sex, levels = c("male", "female")),
-    age_years = as.numeric(age_years),
-    Income_group = case_when(
-      World_Bank_Income_Group == "High income" ~ "HIC",
-      World_Bank_Income_Group %in% c("Low income", "Lower middle income", "Upper middle income") ~ "LMIC",
-      TRUE ~ NA_character_
-    ),
-    Income_group = factor(Income_group, levels = c("HIC", "LMIC"))) %>% filter(!is.na(Income_group))
-
-fit <- gam(
-  log10_ARG_load ~ sex + s(age_years, by = sex, k = 10) + sex*Income_group,
-  method = "REML", data= df_temp)
-
-summary(fit)
-draw(fit)
-```
-### 2.X Model check:
+### 2.6 Model check:
 Go through with mahkameh
 ```r
 plot(fit$fitted.values, df_temp$log10_ARG_load,
@@ -567,7 +329,7 @@ abline(h=0, col="red")
 # 0 to 0.5 normal deviation
 ```
 
-### 2.6 GAM differences
+### 2.7 GAM differences
 ```r
 diff <- difference_smooths(
   fit,
@@ -576,7 +338,7 @@ diff <- difference_smooths(
 
 draw(diff)
 ```
-### 2.7 Visualize GAM differences
+### 2.8 Visualize GAM differences
 ```r
 newdata <- expand.grid(
   age_years = seq(min(df_temp$age_years),
@@ -597,7 +359,7 @@ diff_data <- newdata %>%
 
 diff_data$diff <- diff_data$pred_male - diff_data$pred_female
 ```
-### Options for visualizations
+### 2.9 Options for visualizations
 
 ```r
 ggplot(diff_data, aes(age_years, diff)) +
