@@ -126,11 +126,8 @@ plot_df <- Subset %>% filter(
       World_Bank_Income_Group == "High income" ~ "HIC",
       World_Bank_Income_Group %in% c("Low income", "Lower middle income", "Upper middle income") ~ "LMIC",
       TRUE ~ NA_character_),
-    Income_group = factor(Income_group, levels = c("HIC", "LMIC")),
-    age_category = factor(age_category, levels = c(
-      "Infant", "Toddler", "Child", "Teenage",
-      "Young adult", "Middle-Age Adult",
-      "Older Adult", "Oldest Adult"))) %>%filter(!is.na(Income_group))
+    Income_group = factor(Income_group, levels = c("HIC", "LMIC"))) %>%
+filter(!is.na(Income_group))
 
 table_df <- plot_df %>%
   count(Income_group, sex) %>%
@@ -155,7 +152,6 @@ table_image
 ### 3.2 Linear model
 Numeric age
 ```r
-
 HIC_df <- plot_df %>% filter(Income_group == "HIC")
 LMIC_df <- plot_df %>% filter(Income_group == "LMIC")
 
