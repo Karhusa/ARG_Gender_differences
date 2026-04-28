@@ -73,9 +73,7 @@ dim(Subset)
 
 ---
 
-## 2. GAM Analyses
-
-Sample distribution
+## 2. Sample distribution
 
 ```r
 plot_df <- Subset %>%
@@ -115,7 +113,7 @@ table_image <- table_df %>%
 
 table_image
 ```
-## 2. Original Gam model 
+## 3. Original Gam model 
 
 * How ARG abundance changes
 * Difference in baseline ARG load between males and females
@@ -126,18 +124,18 @@ table_image
 
 Question: Does ARG load vary with age differently in males and females, and is this modified by socioeconomic status?
 
-### 2.1 Model
+### 3.1 Model
 ```r
 fit <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10) + sex*Income_group,
   method = "REML", data= plot_df)
 ```
-### 2.2 Model check
+### 3.2 Model check
 ```r
 summary(fit)
 draw(fit)
 gam.check(fit)
 ```
-### 2.3 Cross validation
+### 3.3 Cross validation
 ```r
 set.seed(1)
 
@@ -164,21 +162,34 @@ for (k in 1:K) {
 }
 
 mean(rmse)
+#[1] 0.3028779
 
+sd(plot_df$log10_ARG_load)
+#[1] 0.3121431
 ```
+--> Gam effects are real but weak in predictive power
+
+--> Your model explains population-level trends, but not individual-level variation
 
 
-### 2.1 GAM analyses separated by income groups
+## 4 GAM analyses separated by income groups
+
+* Within HIC, what is the age/sex pattern?
+* Within LMIC, what is the age/sex pattern?
+
+### 4.1 Model
 ```r
 HIC_df <- plot_df %>% filter(Income_group == "HIC")
 LMIC_df <- plot_df %>% filter(Income_group == "LMIC")
 
-fit_HIC <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10) + sex,
+fit_HIC <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10),
   method = "REML", data= HIC_df)
 
-fit_LMIC <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10) + sex,
+fit_LMIC <- gam(log10_ARG_load ~ sex + s(age_years, by = sex, k = 10),
   method = "REML", data= LMIC_df)
-
+```
+### 4.1 Model check
+```
 summary(fit_HIC)
 draw(fit_HIC)
 gam.check(fit_HIC)
@@ -187,7 +198,94 @@ summary(fit_LMIC)
 draw(fit_LMIC)
 gam.check(fit_LMIC)
 ```
-### 2.2. Train the dataset
+### 4.2. Cross validation (Root Mean Squared Error)
+HIC
 ```r
+set.seed(1)
 
+K <- 5
+folds <- sample(rep(1:K, length.out = nrow(HIC_df)))
+
+rmse <- numeric(K)
+
+for (k in 1:K) {
+
+  train <- HIC_df[folds != k, ]
+  test  <- HIC_df[folds == k, ]
+
+  model <- gam(
+    log10_ARG_load ~ sex + s(age_years, by = sex, k = 10),
+    method = "REML",
+    data = train
+  )
+
+  pred <- predict(model, newdata = test)
+
+  rmse[k] <- sqrt(mean((test$log10_ARG_load - pred)^2))
+}
+
+mean(rmse)
+sd(rmse)
+
+mean(rmse)
+sd(rmse)
+```
+LMIC:
+```r
+set.seed(1)
+
+K <- 5
+folds <- sample(rep(1:K, length.out = nrow(LMIC_df)))
+
+rmse <- numeric(K)
+
+for (k in 1:K) {
+
+  train <- LMIC_df[folds != k, ]
+  test  <- LMIC_df[folds == k, ]
+
+  model <- gam(
+    log10_ARG_load ~ sex + s(age_years, by = sex, k = 10),
+    method = "REML",
+    data = train
+  )
+
+  pred <- predict(model, newdata = test)
+
+  rmse[k] <- sqrt(mean((test$log10_ARG_load - pred)^2))
+}
+
+mean(rmse)
+sd(rmse)
+
+mean(rmse)
+sd(rmse)
+
+```
+
+* Mean CV RMSE ≈ 0.303	weak predictive power
+* SD of RMSE ≈ 0.007	very stable model
+* different train/test splits give almost identical performance
+* no evidence of instability or overfitting fluctuations
+
+---
+
+## 5 GAM analyses separated by sexes
+### 5.1 Model
+```r
+Male_df   <- plot_df %>% filter(sex == "Male")
+Female_df <- plot_df %>% filter(sex == "Female")
+
+fit_female <- gam(
+  log10_ARG_load ~ s(age_years, k = 10) + Income_group,
+  method = "REML",
+  data = Female_df
+)
+
+fit_male <- gam(
+  log10_ARG_load ~ s(age_years, k = 10) + Income_group,
+  method = "REML",
+  data = Male_df
+)
+```
 
