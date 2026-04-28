@@ -289,3 +289,80 @@ fit_male <- gam(
 )
 ```
 
+### 5.2 Model check
+```r
+summary(fit_female)
+draw(fit_female)
+gam.check(fit_female)
+
+summary(fit_male)
+draw(fit_male)
+gam.check(fit_male)
+```
+### 3.3 Cross validation
+Female:
+```r
+set.seed(1)
+
+K <- 5
+fold_id_f <- sample(rep(1:K, length.out = nrow(Female_df)))
+
+rmse_f <- numeric(K)
+
+for (k in 1:K) {
+
+  train <- Female_df[fold_id_f != k, ]
+  test  <- Female_df[fold_id_f == k, ]
+
+  model <- gam(
+    log10_ARG_load ~ s(age_years, k = 10) + Income_group,
+    method = "REML",
+    data = train
+  )
+
+  pred <- predict(model, newdata = test)
+
+  rmse_f[k] <- sqrt(mean((test$log10_ARG_load - pred)^2))
+}
+
+mean(rmse_f)
+sd(rmse_f)
+```
+Male:
+```r
+set.seed(1)
+
+K <- 5
+fold_id_m <- sample(rep(1:K, length.out = nrow(Male_df)))
+
+rmse_m <- numeric(K)
+
+for (k in 1:K) {
+
+  train <- Male_df[fold_id_m != k, ]
+  test  <- Male_df[fold_id_m == k, ]
+
+  model <- gam(
+    log10_ARG_load ~ s(age_years, k = 10) + Income_group,
+    method = "REML",
+    data = train
+  )
+
+  pred <- predict(model, newdata = test)
+
+  rmse_m[k] <- sqrt(mean((test$log10_ARG_load - pred)^2))
+}
+
+mean(rmse_m)
+sd(rmse_m)
+```
+
+| Model      | Mean RMSE | SD RMSE | Interpretation                |
+| ---------- | --------- | ------- | ----------------------------- |
+| Female GAM | 0.3057    | 0.0050  | stable, slightly worse        |
+| Male GAM   | 0.2995    | 0.0024  | best performance, very stable |
+
+
+
+
+
