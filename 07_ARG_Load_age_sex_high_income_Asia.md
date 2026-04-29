@@ -81,8 +81,6 @@ hic_As <- Subset %>%
 
 unique(hic_As$country)
 
-hic_As <- hic_As %>%
-  filter(country != "China")
 ```
 Age category (for boxplot)
 
@@ -90,8 +88,7 @@ Age category (for boxplot)
 hic_As_clean <- hic_As %>%
   filter(
     !is.na(age_category),
-    !is.na(sex)
-  )
+    !is.na(sex))
 table(hic_As_clean$sex, useNA = "ifany")
 
 table_df <- hic_As_clean %>%
