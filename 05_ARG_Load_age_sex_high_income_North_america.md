@@ -68,15 +68,12 @@ Subset <- Subset[!Subset$biosample %in% remove_ids, ]
 ```
 --> 330 samples removed
 
-## 2.High income countries in EU
+## 2.High income countries in North Amerisa
 
 ### 2.1 Sample distribution
 ```r
 hic_NA <- Subset %>%
-  filter(
-    World_Bank_Income_Group == "High income",
-    continent == "North America")
-
+  filter(World_Bank_Income_Group == "High income", continent == "North America")
 unique(hic_NA$country)
 ```
 Age category (for boxplot)
@@ -84,8 +81,7 @@ Age category (for boxplot)
 ```r
 hic_NA_clean <- hic_NA %>%
   filter(
-    !is.na(age_category),
-    !is.na(sex))
+    !is.na(age_category), !is.na(sex))
 table(hic_NA_clean$sex, useNA = "ifany")
 
 table_df <- hic_NA_clean %>%
@@ -94,8 +90,7 @@ table_df <- hic_NA_clean %>%
     names_from = sex,
     values_from = n,
     values_fill = 0
-  ) %>%
-  mutate(Total = female + male)
+  ) %>% mutate(Total = female + male)
 
 table_df <- table_df %>%
   mutate(
@@ -114,9 +109,7 @@ table_image <- table_df %>%
     male = "Male (n)",
     Total = "Total (n)"
   ) %>%
-  tab_header(
-    title = "High-Income North America: Sample Distribution by Age and Sex"
-  )
+  tab_header(title = "High-Income North America: Sample Distribution by Age and Sex")
 
 table_image
 
@@ -135,10 +128,7 @@ sex_gt <- sex_table %>%
     sex = "Sex",
     n = "Count (n)"
   ) %>%
-  tab_header(
-    title = "Sex distribution in the High-Income North American cohort"
-  )
-
+  tab_header(title = "Sex distribution in the High-Income North American cohort")
 ```
 
 ## 2.2 Boxplot
@@ -163,8 +153,7 @@ plot_df <- hic_NA_clean %>%
       "Young adult", "Middle-Age Adult",
       "Older Adult", "Oldest Adult"
     ))
-  ) %>%
-  filter(!is.na(sex))
+  ) %>% filter(!is.na(sex))
 
 ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
   geom_jitter(
@@ -195,15 +184,11 @@ ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
     legend.position = "right",
     axis.text.x = element_text(angle = 45, hjust = 1),
     strip.text = element_text(face = "bold"))
-
 ```
 
 ### 2.3 Linear regression
 ```r
-model <- lm(
-  log10_ARG_load ~ sex + age_years,
-  data = hic_NA_clean_num)
-
+model <- lm(log10_ARG_load ~ sex + age_years, data = hic_NA_clean_num)
 summary(model)
 ```
 
