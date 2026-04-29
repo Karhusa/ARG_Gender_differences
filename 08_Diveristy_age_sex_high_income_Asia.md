@@ -80,8 +80,6 @@ hic_As <- Subset %>%
 
 unique(hic_As$country)
 
-hic_As <- hic_As %>%
-  filter(country != "China")
 ```
 Age category (for boxplot)
 
@@ -176,8 +174,10 @@ ggplot(plot_df, aes(x = age_category, y = ARG_div_shan, fill = sex)) +
     alpha = 0.8,
     position = position_dodge(width = 0.6)
   ) +
-  scale_fill_npg() +
-  scale_color_npg() +
+  scale_fill_manual(values = c(
+    "Female" = "#8B0000",
+    "Male"   = "#003366"
+  )) +
   labs(
     title = "ARG Diversity by Age Category and Sex (High-Income Asia)",
     x = "Age Category",
