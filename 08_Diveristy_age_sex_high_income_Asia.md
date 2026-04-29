@@ -35,7 +35,6 @@ colData_df <- as.data.frame(colData(TSE))
 
 Subset <- colData_df %>%
   select(
-    log10_ARG_load,
     ARG_div_shan,
     region,
     city,
@@ -146,7 +145,7 @@ sex_gt <- sex_table %>%
 ```r
 plot_df <- hic_As_clean %>%
   filter(
-    !is.na(log10_ARG_load),
+    !is.na(ARG_div_shan),
     !is.na(sex),
     !is.na(age_category)
   ) %>%
@@ -166,7 +165,7 @@ plot_df <- hic_As_clean %>%
   ) %>%
   filter(!is.na(sex))
 
-ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
+ggplot(plot_df, aes(x = age_category, y = ARG_div_shan, fill = sex)) +
   geom_jitter(
     position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.6),
     size = 1.2, alpha = 0.25, color = "grey30"
@@ -180,9 +179,9 @@ ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
   scale_fill_npg() +
   scale_color_npg() +
   labs(
-    title = "ARG Load by Age Category and Sex (High-Income Asia)",
+    title = "ARG Diversity by Age Category and Sex (High-Income Asia)",
     x = "Age Category",
-    y = expression(log[10]*"(ARG load)"),
+    y = expression(" ARG Diversity, shannon index"),
     fill = "Sex"
   ) +
   stat_compare_means(
@@ -202,7 +201,7 @@ ggplot(plot_df, aes(x = age_category, y = log10_ARG_load, fill = sex)) +
 ### 2.3 Linear regression
 ```r
 model <- lm(
-  log10_ARG_load ~ sex + age_years,
+  ARG_div_shan ~ sex + age_years,
   data = hic_As_clean_num)
 
 summary(model)
