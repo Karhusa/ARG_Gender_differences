@@ -68,7 +68,7 @@ Subset <- Subset[!Subset$biosample %in% remove_ids, ]
 ```
 --> 330 samples removed
 
-## 2.High income countries in North Amerisa
+## 2.High income countries in North America
 
 ### 2.1 Sample distribution
 ```r
