@@ -1,0 +1,329 @@
+# 06_GAM_ARG_sex_age_income.R
+
+library(tidyverse)
+library(mgcv)
+library(gratia)
+library(SummarizedExperiment)
+library(ggplot2)
+
+
+tse_path <- "/scratch/project_2008149/USER_WORKSPACES/karhula/DATA/TSE.rds"
+TSE <- readRDS(tse_path)
+
+df <- as.data.frame(colData(TSE))
+
+df_main <- df %>%
+  dplyr::select(
+    acc,
+    log10_ARG_load,
+    age_years,
+    sex,
+    World_Bank_Income_Group,
+    antibiotic_use,
+    bmi_category,
+    country,
+    geo_loc_name_country_continent_calc
+  ) %>%
+  mutate(
+    sex = case_when(
+      sex %in% c("female", "Female") ~ "female",
+      sex %in% c("male", "Male") ~ "male",
+      TRUE ~ NA_character_
+    ),
+    sex = factor(sex, levels = c("female", "male")),
+    
+    age_years = suppressWarnings(as.numeric(age_years)),
+    
+    World_Bank_Income_Group = case_when(
+      World_Bank_Income_Group %in% c(
+        "Low income",
+        "Lower middle income",
+        "Upper middle income",
+        "High income"
+      ) ~ World_Bank_Income_Group,
+      TRUE ~ NA_character_
+    ),
+    
+    Income_group_simple = case_when(
+      World_Bank_Income_Group == "High income" ~ "HIC",
+      World_Bank_Income_Group %in% c(
+        "Low income",
+        "Lower middle income",
+        "Upper middle income"
+      ) ~ "LMIC",
+      TRUE ~ NA_character_
+    ),
+    Income_group_simple = factor(Income_group_simple, levels = c("LMIC", "HIC")),
+    
+    antibiotic_use = case_when(
+      antibiotic_use %in% c("Yes", "yes", "1", 1) ~ "Yes",
+      antibiotic_use %in% c("No", "no", "0", 0) ~ "No",
+      TRUE ~ NA_character_
+    ),
+    antibiotic_use = factor(antibiotic_use, levels = c("No", "Yes")),
+    
+    bmi_category = case_when(
+      bmi_category %in% c(
+        "Underweight (<18.5)",
+        "Normal (18.5-25)",
+        "Overweight (25-30)",
+        "Obese (>30)"
+      ) ~ bmi_category,
+      TRUE ~ NA_character_
+    ),
+    bmi_category = factor(
+      bmi_category,
+      levels = c(
+        "Underweight (<18.5)",
+        "Normal (18.5-25)",
+        "Overweight (25-30)",
+        "Obese (>30)"
+      )
+    ),
+    
+    age_group_simple = case_when(
+      age_years < 18 ~ "Child",
+      age_years >= 18 ~ "Adult",
+      TRUE ~ NA_character_
+    ),
+    age_group_simple = factor(age_group_simple, levels = c("Child", "Adult"))
+  ) %>%
+  filter(
+    !is.na(log10_ARG_load),
+    !is.na(age_years),
+    !is.na(sex),
+    !is.na(Income_group_simple)
+  ) %>%
+  mutate(
+    sex_income = interaction(sex, Income_group_simple, drop = TRUE)
+  )
+
+# Quick checks
+table(df_main$sex)
+table(df_main$Income_group_simple)
+table(df_main$age_group_simple)
+summary(df_main$age_years)
+
+# ------------------------------------------------------------
+# Main unified GAM
+# ------------------------------------------------------------
+fit_main <- gam(
+  log10_ARG_load ~
+    sex * Income_group_simple +
+    s(age_years, by = sex_income, k = 20),
+  method = "REML",
+  data = df_main
+)
+
+summary(fit_main)
+gam.check(fit_main)
+
+# ------------------------------------------------------------
+# Adjusted unified GAM
+#    This is a subset analysis due to missing covariates
+# ------------------------------------------------------------
+df_adj <- df_main %>%
+  filter(!is.na(antibiotic_use), !is.na(bmi_category)) %>%
+  mutate(
+    sex_income = interaction(sex, Income_group_simple, drop = TRUE)
+  )
+
+fit_main_adj <- gam(
+  log10_ARG_load ~
+    sex * Income_group_simple +
+    antibiotic_use +
+    bmi_category +
+    s(age_years, by = sex_income, k = 20),
+  method = "REML",
+  data = df_adj
+)
+
+summary(fit_main_adj)
+gam.check(fit_main_adj)
+
+# ------------------------------------------------------------
+# Comparison models
+# ------------------------------------------------------------
+lm_simple <- lm(
+  log10_ARG_load ~ sex + age_years + sex * Income_group_simple,
+  data = df_main
+)
+
+gam_simple <- gam(
+  log10_ARG_load ~
+    sex * Income_group_simple +
+    s(age_years, by = sex, k = 20),
+  method = "REML",
+  data = df_main
+)
+
+lm_adj <- lm(
+  log10_ARG_load ~ sex + age_years + sex * Income_group_simple +
+    antibiotic_use + bmi_category,
+  data = df_adj
+)
+
+gam_adj_simple <- gam(
+  log10_ARG_load ~
+    sex * Income_group_simple +
+    antibiotic_use +
+    bmi_category +
+    s(age_years, by = sex, k = 20),
+  method = "REML",
+  data = df_adj
+)
+
+AIC(lm_simple, gam_simple, fit_main)
+AIC(lm_adj, gam_adj_simple, fit_main_adj)
+
+# ------------------------------------------------------------
+# Stratified HIC / LMIC models
+# ------------------------------------------------------------
+df_HIC <- df_main %>%
+  filter(Income_group_simple == "HIC") %>%
+  droplevels()
+
+fit_HIC <- gam(
+  log10_ARG_load ~ sex + s(age_years, by = sex, k = 20),
+  method = "REML",
+  data = df_HIC
+)
+
+summary(fit_HIC)
+gam.check(fit_HIC)
+
+df_LMIC <- df_main %>%
+  filter(Income_group_simple == "LMIC") %>%
+  droplevels()
+
+fit_LMIC <- gam(
+  log10_ARG_load ~ sex + s(age_years, by = sex, k = 12),
+  method = "REML",
+  data = df_LMIC
+)
+
+summary(fit_LMIC)
+gam.check(fit_LMIC)
+
+# ------------------------------------------------------------
+# Stratified child / adult models
+# ------------------------------------------------------------
+df_child <- df_main %>%
+  filter(age_group_simple == "Child") %>%
+  droplevels()
+
+fit_child <- gam(
+  log10_ARG_load ~ sex + s(age_years, by = sex, k = 15),
+  method = "REML",
+  data = df_child
+)
+
+summary(fit_child)
+gam.check(fit_child)
+
+df_adult <- df_main %>%
+  filter(age_group_simple == "Adult") %>%
+  droplevels()
+
+fit_adult <- gam(
+  log10_ARG_load ~ sex + s(age_years, by = sex, k = 20),
+  method = "REML",
+  data = df_adult
+)
+
+summary(fit_adult)
+gam.check(fit_adult)
+
+# ------------------------------------------------------------
+# Prediction grid for main unified GAM
+# ------------------------------------------------------------
+newdata_main <- expand.grid(
+  age_years = seq(
+    min(df_main$age_years, na.rm = TRUE),
+    max(df_main$age_years, na.rm = TRUE),
+    length.out = 250
+  ),
+  sex = levels(df_main$sex),
+  Income_group_simple = levels(df_main$Income_group_simple)
+) %>%
+  mutate(
+    sex_income = interaction(sex, Income_group_simple, drop = TRUE)
+  )
+
+pred_main <- predict(fit_main, newdata = newdata_main, se.fit = TRUE)
+
+newdata_main <- newdata_main %>%
+  mutate(
+    pred = pred_main$fit,
+    se = pred_main$se.fit,
+    lower = pred - 1.96 * se,
+    upper = pred + 1.96 * se
+  )
+
+p_main <- ggplot(newdata_main, aes(x = age_years, y = pred, color = sex, fill = sex)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.18, color = NA) +
+  facet_wrap(~ Income_group_simple) +
+  labs(
+    x = "Age (years)",
+    y = "Predicted log10 ARG load",
+    title = "Sex-specific age trajectories by income group"
+  ) +
+  theme_minimal()
+
+print(p_main)
+
+# ------------------------------------------------------------
+# Male - female prediction difference by income group
+# ------------------------------------------------------------
+diff_data <- newdata_main %>%
+  dplyr::select(age_years, sex, Income_group_simple, pred, se) %>%
+  tidyr::pivot_wider(
+    names_from = sex,
+    values_from = c(pred, se)
+  ) %>%
+  mutate(
+    diff = pred_male - pred_female,
+    se_diff = sqrt(se_male^2 + se_female^2),
+    lower = diff - 1.96 * se_diff,
+    upper = diff + 1.96 * se_diff
+  )
+
+p_diff <- ggplot(diff_data, aes(x = age_years, y = diff)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.18) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~ Income_group_simple) +
+  labs(
+    x = "Age (years)",
+    y = "Male - Female predicted difference in log10 ARG load",
+    title = "Predicted sex differences across age"
+  ) +
+  theme_minimal()
+
+print(p_diff)
+
+# ------------------------------------------------------------
+# Model summary table
+# ------------------------------------------------------------
+model_summary <- tibble(
+  model = c(
+    "LM simple",
+    "GAM simple",
+    "Unified GAM",
+    "LM adjusted",
+    "GAM adjusted simple",
+    "Unified GAM adjusted"
+  ),
+  AIC = c(
+    AIC(lm_simple),
+    AIC(gam_simple),
+    AIC(fit_main),
+    AIC(lm_adj),
+    AIC(gam_adj_simple),
+    AIC(fit_main_adj)
+  )
+)
+
+print(model_summary)
+
